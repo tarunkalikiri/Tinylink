@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinyLink Dashboard</title>
+<style>
+body { font-family: Arial; padding: 20px; max-width: 800px; margin:auto; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { border: 1px solid #aaa; padding: 6px; text-align: left; }
+button { padding: 4px 8px; margin:2px; cursor:pointer; }
+input { padding: 4px; margin: 2px; width: 200px; }
+</style>
+</head>
+<body>
+<h1>TinyLink Dashboard</h1>
+
+<form id="addForm">
+  <input type="text" id="url" placeholder="Enter URL" required>
+  <input type="text" id="code" placeholder="Custom code (optional)">
+  <button type="submit">Add Link</button>
+</form>
+<p id="msg" style="color:red"></p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Code</th>
+      <th>URL</th>
+      <th>Clicks</th>
+      <th>Last Clicked</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="links"></tbody>
+</table>
+
+<script>
+async function fetchLinks() {
+  const res = await fetch("/api/links");
+  const data = await res.json();
+  const tbody = document.getElementById("links");
+  tbody.innerHTML = "";
+  data.forEach(l=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${l.code}</td>
+      <td>${l.url}</td>
+      <td>${l.clicks}</td>
+      <td>${l.last_clicked||'-'}</td>
+      <td>
+        <button onclick="deleteLink('${l.code}')">Delete</button>
+        <a href='/${l.code}' target='_blank'>Go</a>
+        <button onclick="copyLink('${l.code}')">Copy</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteLink(code){
+  await fetch("/api/links/"+code,{method:"DELETE"});
+  fetchLinks();
+}
+
+function copyLink(code){
+  const link = window.location.origin + "/" + code;
+  navigator.clipboard.writeText(link).then(()=>{
+    alert("Copied: " + link);
+  });
+}
+
+document.getElementById("addForm").onsubmit = async function(e){
+  e.preventDefault();
+  const url = document.getElementById("url").value;
+  const code = document.getElementById("code").value;
+  const res = await fetch("/api/links",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({url,code})
+  });
+  const data = await res.json();
+  if(!res.ok){ 
+    document.getElementById("msg").textContent = data.error; 
+  } else { 
+    document.getElementById("msg").textContent="";
+    document.getElementById("url").value="";
+    document.getElementById("code").value="";
+    fetchLinks();
+  }
+};
+
+fetchLinks();
+</script>
+</body>
+</html>
